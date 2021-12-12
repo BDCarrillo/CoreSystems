@@ -846,14 +846,14 @@ namespace CoreSystems.Support
 
                 [ProtoMember(1)] internal double AreaEffectRadius;
                 [ProtoMember(2)] internal float AreaEffectDamage;
-                [ProtoMember(3)] internal Falloff RadiantFalloff; //New
-                [ProtoMember(4)] internal float AreaEffectMaxDepth;//new
-                [ProtoMember(5)] internal AreaEffectType AreaEffect;
-                [ProtoMember(6)] internal PulseDef Pulse;
-                [ProtoMember(7)] internal DetonateDef Detonation;
-                [ProtoMember(8)] internal ExplosionDef Explosions;
-                [ProtoMember(9)] internal EwarFieldsDef EwarFields;
-                [ProtoMember(10)] internal AreaInfluence Base;
+                [ProtoMember(3)] internal AreaEffectType AreaEffect;
+                [ProtoMember(4)] internal PulseDef Pulse;
+                [ProtoMember(5)] internal DetonateDef Detonation;
+                [ProtoMember(6)] internal ExplosionDef Explosions;
+                [ProtoMember(7)] internal EwarFieldsDef EwarFields;
+                [ProtoMember(8)] internal AreaInfluence Base;
+                [ProtoMember(9)] internal Falloff RadiantFalloff; //New
+                [ProtoMember(10)] internal float AreaEffectMaxDepth;//new
 
                 [ProtoContract]
                 public struct AreaInfluence
@@ -914,9 +914,9 @@ namespace CoreSystems.Support
                     [ProtoMember(2)] internal bool ArmOnlyOnHit;
                     [ProtoMember(3)] internal float DetonationRadius;
                     [ProtoMember(4)] internal float DetonationDamage;
-                    [ProtoMember(5)] internal Falloff DetonationFalloff; //New
-                    [ProtoMember(6)] internal float DetonationMaxDepth;//new
-                    [ProtoMember(7)] internal int MinArmingTime;
+                    [ProtoMember(5)] internal int MinArmingTime;
+                    [ProtoMember(6)] internal Falloff DetonationFalloff; //New
+                    [ProtoMember(7)] internal float DetonationMaxDepth;//new
                 }
 
                 [ProtoContract]

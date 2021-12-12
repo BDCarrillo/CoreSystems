@@ -629,21 +629,24 @@ namespace CoreSystems
 
             //Ammo properties
             //Detonate info
-            var detonateRadius = largeGrid ? t.AmmoDef.Const.DetonateRadiusLarge : t.AmmoDef.Const.DetonateRadiusSmall;
+            var detonateRadius = t.AmmoDef.AreaEffect.Detonation.DetonationRadius; 
             var detonateOnEnd = t.AmmoDef.AreaEffect.Detonation.DetonateOnEnd && t.Age >= t.AmmoDef.AreaEffect.Detonation.MinArmingTime;
             var detonateDmg = t.AmmoDef.Const.DetonationDamage;
             var hasDetDmg = detonateOnEnd && detonateDmg > 0 && detonateRadius > 0;
-            var detonateDepth = t.AmmoDef.AreaEffect.Detonation.DetonationMaxDepth; //handle for nonexistent vals?
-            var detonatefalloff = t.AmmoDef.AreaEffect.Detonation.DetonationFalloff; //handle for null?            
+            var detonateDepth = t.AmmoDef.Const.DetonationMaxDepth; 
+            var detonatefalloff = t.AmmoDef.AreaEffect.Detonation.DetonationFalloff;         
             //Radiant/area info
-            var areaRadius = largeGrid ? t.AmmoDef.Const.AreaRadiusLarge : t.AmmoDef.Const.AreaRadiusSmall;
-            var areaDepth = t.AmmoDef.AreaEffect.AreaEffectMaxDepth; //handle for nonexistent vals?
+            var areaRadius = t.AmmoDef.AreaEffect.AreaEffectRadius;
+            var areaDepth = t.AmmoDef.Const.AreaAffectMaxDepth; 
             var areaEffect = t.AmmoDef.AreaEffect.AreaEffect;
             var radiant = areaEffect == AreaEffectType.Radiant;
             var areaEffectDmg = areaEffect != AreaEffectType.Disabled ? t.AmmoDef.Const.AreaEffectDamage : 0;
             var hasAreaDmg = areaEffectDmg > 0 && areaRadius > 0;
             var radiantEffect = radiant || hasDetDmg;
-            var radiantFall = t.AmmoDef.AreaEffect.RadiantFalloff; //handle for null?
+            var radiantFall = t.AmmoDef.AreaEffect.RadiantFalloff; 
+
+            Log.Line($"detonationmaxdepth {detonateDepth}  detrad {detonateRadius}    areamaxdepth {areaDepth} arearad {areaRadius}");
+
             //Other properties
             var hitMass = t.AmmoDef.Mass;            
             var damageType = t.ShieldBypassed ? ShieldBypassDamageType : radiant || hasDetDmg ? MyDamageType.Explosion : MyDamageType.Bullet;
@@ -727,7 +730,6 @@ namespace CoreSystems
                 {
                     Log.Line($"get area blocks, we're radiant");
                     AOE(rootBlock, grid, areaRadius, areaDepth, direction,ref maxDBC, DamageBlockCache); //Detonate depth & dir added
-                    //dmgCount = SlimsSortedList.Count; delete?
                     radiating = true;
                 }
 
@@ -736,14 +738,11 @@ namespace CoreSystems
                 {
                     Log.Line($"get nova blocks, we're going boom");
                     AOE(rootBlock, grid, detonateRadius, detonateDepth, direction,ref maxDBC, DamageBlockCache) ;  //detonate depth & dir added
-                    //dmgCount = SlimsSortedList.Count; delete?
                     novacomplete = true;
                 }
-                //Log.Line($"AOE complete, rootblock: {rootBlock}");
 
-
-                //write rootBlock to DBC array so it'll trickle through everything below.  Yes, it's in index[1] so we're not multiplying by 0 for falloff
-                DamageBlockCache[1].Add(new RadiatedBlock { Slim = rootBlock, Distance = 0, Hits = 1 });
+                //write rootBlock to DBC array so it'll trickle through everything below
+                DamageBlockCache[0].Add(new RadiatedBlock { Slim = rootBlock, Distance = 0, Hits = 1 });
                 
                 
                 
@@ -756,11 +755,12 @@ namespace CoreSystems
                 //Loop through blocks "hit" by damage, in groups by range.  J essentially = dist to root
                 for (int j = 0; j < maxDBC+1; j++)
                 {
+                    Log.Line($"J? {j}");
                     var DBC = DamageBlockCache[j];
                     var DBCcount = DBC.Count;
                     if (DBCcount == 0)
                     {
-                        Log.Line($"bailout at J={j}");
+                        Log.Line($"bailout at J={j}");  //verify if this works for gaps, IE J should go through 1, 3, 4, 5
                         break;
                     }
 
@@ -768,6 +768,7 @@ namespace CoreSystems
                     //Falloff switches & calcs for type of explosion & expDamageFall as output (this will need to be run by damage scaling for world/etc)
                     float expDamageFall = 0;
                     var maxfalldist = radiating ? areaRadius * grid.GridSizeR : detonateRadius * grid.GridSizeR;
+                    
                     switch (radiating ? radiantFall : detonatefalloff)
                     {
                         case Falloff.Legacy:
@@ -787,10 +788,12 @@ namespace CoreSystems
                             break;
                        
                     }
-
-
-
-                   
+                    //If we're exploding, we need the root block (the only one in j=0) to take damage
+                    if (j == 0 & (radiating||novaing))
+                    {
+                        expDamageFall = radiating ? areaEffectDmg : detonateDmg;
+                    }
+             
                  
 
   
@@ -814,7 +817,7 @@ namespace CoreSystems
                         var blockDmgModifier = cubeBlockDef.GeneralDamageMultiplier;
                         
 
-                        //Damage scaling bullshit for blocktypes
+                        //Damage scaling bullshit for blocktypes, needs review
                         if (t.AmmoDef.Const.DamageScaling || !MyUtils.IsEqual(blockDmgModifier, 1f) || !MyUtils.IsEqual(gridDamageModifier, 1f))
                         {
 
@@ -1024,7 +1027,7 @@ namespace CoreSystems
             SlimsSortedList.Clear();
             hitEnt.Blocks.Clear();
         }
-        /*
+       
         private void RadiantFinish(IMySlimBlock rootBlock, IMySlimBlock currentBlock, float remainingDamage, float gridDamageModifier, float blockDmgModifier, float blockHp, long attackerId, bool canDamage, bool sync, List<RadiatedBlock> radiatedBlocks, int index, ref MyStringHash damageType, out int destroyed)
         {
             var blockCount = radiatedBlocks.Count;
@@ -1068,7 +1071,7 @@ namespace CoreSystems
             Log.Line($"travelDist:{blockTravelDist}");
             remainingScaler = (float)Math.Pow((2 * blockTravelDist) + 1, 3);
         }
-        */
+        
         private void DamageDestObj(HitEntity hitEnt, ProInfo info, bool canDamage)
         {
             var entity = hitEnt.Entity;
@@ -1317,7 +1320,7 @@ namespace CoreSystems
             }
             return false;
         }
-        /*
+        
         public void BlocksInRange(IMySlimBlock root, MyCubeGrid grid, double radius, List<RadiatedBlock> list)
         {
             list.Clear();
@@ -1371,11 +1374,11 @@ namespace CoreSystems
                 }
             }
         }
-        */
+       
         public static void AOE(IMySlimBlock root, MyCubeGrid grid, double radius, double depth, Vector3D direction, ref int maxDBC, List<RadiatedBlock>[] list) //added depth and angle
         {
             
-            //var angle = 0;
+            //TODO: Factor in maximum depth and angle of impact
 
             var rootPos = root.Position; //local cube grid
             Log.Line($"Root Pos:{rootPos} Root hash: {root.GetHashCode()}");
@@ -1418,7 +1421,7 @@ namespace CoreSystems
                                     continue;
 
                               
-                                if (last != null && count > 1)  //what does this do?
+                                if (last != null && count > 1)  //Verify if this is still needed
                                 {
                                     //var result = list[index];
                                     //result.Hits = count - 1; 
@@ -1507,7 +1510,7 @@ namespace CoreSystems
                 }
             }
         }
-        /*
+        
         static void GetIntVectorsInSphere(MyCubeGrid grid, Vector3I center, double radius, List<RadiatedBlock> points)
         {
             points.Clear();
@@ -1620,6 +1623,6 @@ namespace CoreSystems
                     }
                 }
             }
-        }*/
+        }
     }
 }
